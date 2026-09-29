@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createServer, type Server as HttpServer } from 'node:http';
+import type { Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -18,9 +18,9 @@ afterEach(() => { http?.close(); http = undefined; });
 
 async function serve(opts: { maxGames?: number; now?: () => number; distDir?: string; apiLimit?: number } = {}) {
   const store = new GameStore({ llm: { create: vi.fn() }, guards, maxGames: opts.maxGames });
-  http = createServer(createApp(store, { distDir: opts.distDir ?? null, now: opts.now, apiLimitPerMinute: opts.apiLimit }));
-  await new Promise<void>((r) => http!.listen(0, r));
-  return { store, base: `http://localhost:${(http.address() as AddressInfo).port}` };
+  const app = createApp(store, { distDir: opts.distDir ?? null, now: opts.now, apiLimitPerMinute: opts.apiLimit });
+  await new Promise<void>((r) => { http = app.listen(0, () => r()); });
+  return { store, base: `http://localhost:${(http!.address() as AddressInfo).port}` };
 }
 const post = (base: string, ip?: string) =>
   fetch(`${base}/api/games`, { method: 'POST', headers: ip ? { 'cf-connecting-ip': ip } : {} });

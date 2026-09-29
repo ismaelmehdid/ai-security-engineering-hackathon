@@ -119,6 +119,7 @@ The game around them is not. These are the controls that keep the game itself sa
 | Broken access control | Host actions need a secret host token, which is removed from the address bar so it can't be read off a projector. Non-hosts get "Not the host". |
 | Secrets in the repo | API keys live only in `.env` (git-ignored). `DEV_CHEATS` is off by default. |
 | Malformed input | Every socket payload field is type-checked; bad input gets an error reply, not a crash. |
+| Transport and web hardening | TLS terminates at the Cloudflare tunnel (optional direct HTTPS via `TLS_CERT_FILE`/`TLS_KEY_FILE`). Security headers and a strict Content-Security-Policy, no CORS, 10 KB JSON and 16 KB socket message limits, constant-time host-token check, `crypto.randomInt` for ids and passphrases. |
 
 Each level also teaches the matching real-world defense in its "How real engineers stop this"
 lesson card: keep secrets out of context, authorize tools in code, least privilege, and treat tool
@@ -126,3 +127,10 @@ metadata as untrusted.
 
 Tests (`npm test`, 90 Vitest cases) cover the engine, win detection, tool-name sanitization,
 socket validation, LLM failures and timeouts.
+
+## Snyk scan
+
+- `snyk test` (open source): 158 dependencies tested, no vulnerable paths.
+- `snyk code test` (static analysis): 0 open issues. The scan first flagged 3 plain-HTTP server
+  instances; those were replaced with Express `app.listen` behind the TLS-terminating tunnel, plus
+  optional native HTTPS.

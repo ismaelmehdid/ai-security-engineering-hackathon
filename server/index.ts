@@ -3,7 +3,7 @@ import express, { type ErrorRequestHandler, type Express, type Request, type Req
 import fs from 'node:fs';
 import { isIP } from 'node:net';
 import path from 'node:path';
-import { createServer } from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { fileURLToPath } from 'node:url';
 import { Server } from 'socket.io';
 import type { ClientToServerEvents, ServerToClientEvents } from '../shared/types';
@@ -155,15 +155,23 @@ export function startServer(): void {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const app = createApp(store, { distDir: path.resolve(here, '../dist/client') });
 
-  const http = createServer(app);
-  // No CORS: the client is same-origin (served by this process in prod, proxied by Vite in dev).
-  const io = new Server<ClientToServerEvents, ServerToClientEvents>(http, { maxHttpBufferSize: 16 * 1024 });
-  registerSockets(io, store);
-  http.on('error', (err) => {
+  // Transport security: in production, TLS terminates at the Cloudflare tunnel and this process
+  // only receives loopback traffic. For direct exposure, set TLS_CERT_FILE and TLS_KEY_FILE to serve
+  // HTTPS from Node itself.
+  const certFile = process.env.TLS_CERT_FILE?.trim();
+  const keyFile = process.env.TLS_KEY_FILE?.trim();
+  const onListen = () => console.log(`Break the Guard on ${certFile && keyFile ? 'https' : 'http'}://localhost:${PORT}`);
+  const server =
+    certFile && keyFile
+      ? createHttpsServer({ cert: fs.readFileSync(certFile), key: fs.readFileSync(keyFile) }, app).listen(PORT, onListen)
+      : app.listen(PORT, onListen);
+  server.on('error', (err) => {
     console.error(`[server] cannot listen on port ${PORT}:`, err);
     process.exit(1);
   });
-  http.listen(PORT, () => console.log(`Break the Guard on http://localhost:${PORT}`));
+  // No CORS: the client is same-origin (served by this process in prod, proxied by Vite in dev).
+  const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, { maxHttpBufferSize: 16 * 1024 });
+  registerSockets(io, store);
 
   // All game state lives in memory: log stray errors instead of crashing the process.
   process.on('unhandledRejection', (err) => console.error('[server] unhandled rejection:', err));

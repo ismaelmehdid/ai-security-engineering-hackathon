@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { createServer, type Server as HttpServer } from 'node:http';
+import express from 'express';
+import type { Server as HttpServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Server } from 'socket.io';
 import { io as ioClient, type Socket } from 'socket.io-client';
@@ -26,9 +27,8 @@ const once = <T>(c: C, ev: keyof ServerToClientEvents) => new Promise<T>((r) => 
 beforeEach(async () => {
   llmCreate = vi.fn<LlmClient['create']>().mockResolvedValue(llmReply);
   store = new GameStore({ llm: { create: llmCreate }, guards });
-  http = createServer();
+  await new Promise<void>((r) => { http = express().listen(0, () => r()); });
   registerSockets(new Server(http), store);
-  await new Promise<void>((r) => http.listen(0, r));
   url = `http://localhost:${(http.address() as AddressInfo).port}`;
 });
 afterEach(() => { clients.splice(0).forEach((c) => c.close()); http.close(); });
