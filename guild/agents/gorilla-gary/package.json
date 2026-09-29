@@ -1,0 +1,14 @@
+{
+  "name": "break-the-guard-gorilla-gary",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "agent.ts",
+  "dependencies": {
+    "@guildai/agents-sdk": "^0.6.0",
+    "zod": "~4.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
